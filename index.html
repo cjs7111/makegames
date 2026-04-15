@@ -497,7 +497,7 @@ function buyOil() {
   state.money -= p * qty;
   state.inventory.oil += qty;
   state.market.oil.supply = Math.max(0.1, state.market.oil.supply - qty);
-  // 기름 수요만큼 공급이 감소
+  // 기름 수요만큼 공급이 감소함
   state.market.oil.supply = Math.max(0.1, state.market.oil.supply - state.market.oil.demand);
   state.queue.push({ qty, endTime: Date.now() + 5000 });
 }
