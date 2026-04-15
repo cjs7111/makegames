@@ -1,0 +1,590 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Energy Loop: Neo Terminal</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&family=JetBrains+Mono:wght@700&display=swap');
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg-dark: #09090b;
+  --panel-bg: rgba(24, 24, 27, 0.65);
+  --panel-border: rgba(255, 255, 255, 0.08);
+  --text-main: #f8fafc;
+  --text-muted: #a1a1aa;
+  --oil-color: #f59e0b;
+  --oil-glow: rgba(245, 158, 11, 0.4);
+  --elec-color: #06b6d4;
+  --elec-glow: rgba(6, 182, 212, 0.4);
+  --ai-color: #8b5cf6;
+  --ai-glow: rgba(139, 92, 246, 0.4);
+  --alert-color: #ef4444;
+  --alert-glow: rgba(239, 68, 68, 0.5);
+  --green: #10b981;
+  --radius: 12px;
+  --radius-sm: 6px;
+}
+
+body {
+  font-family: 'Inter', sans-serif;
+  background-color: var(--bg-dark);
+  background-image:
+    radial-gradient(circle at 15% 50%, rgba(6, 182, 212, 0.05), transparent 25%),
+    radial-gradient(circle at 85% 30%, rgba(245, 158, 11, 0.05), transparent 25%);
+  color: var(--text-main);
+  min-height: 100vh;
+  line-height: 1.5;
+  overflow-x: hidden;
+}
+
+header {
+  display: flex; align-items: center; justify-content: space-between;
+  background: rgba(9, 9, 11, 0.8);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid var(--panel-border);
+  padding: 16px 24px; position: sticky; top: 0; z-index: 10;
+}
+
+.logo { display: flex; align-items: center; gap: 12px; }
+.logo-icon {
+  width: 36px; height: 36px;
+  background: linear-gradient(135deg, var(--elec-color), var(--ai-color));
+  border-radius: 8px; display: flex; align-items: center; justify-content: center;
+  font-size: 18px; color: #fff; box-shadow: 0 0 15px var(--ai-glow);
+}
+.logo-text { font-size: 18px; font-weight: 800; letter-spacing: -0.02em; }
+
+.header-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+
+.save-indicator {
+  font-size: 11px; color: var(--text-muted);
+  padding: 4px 10px; border-radius: 12px;
+  border: 1px solid var(--panel-border); transition: 0.3s;
+}
+.save-indicator.saving { color: var(--green); border-color: rgba(16, 185, 129, 0.4); }
+.save-indicator.error { color: var(--alert-color); border-color: rgba(239, 68, 68, 0.4); }
+
+.money-badge {
+  background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.3);
+  color: var(--green); font-size: 16px; font-weight: 600;
+  padding: 6px 16px; border-radius: 20px; box-shadow: 0 0 10px rgba(16, 185, 129, 0.2);
+  font-family: 'JetBrains Mono', monospace;
+}
+
+.btn-icon {
+  background: rgba(255, 255, 255, 0.05); border: 1px solid var(--panel-border);
+  color: var(--text-main); padding: 6px 12px; border-radius: 20px;
+  font-size: 13px; font-weight: 600; cursor: pointer; transition: 0.2s;
+}
+.btn-icon:hover { background: rgba(255, 255, 255, 0.15); }
+.btn-icon.danger { color: var(--alert-color); }
+.btn-icon.danger:hover { background: rgba(239, 68, 68, 0.15); }
+
+.container { padding: 24px; max-width: 1200px; margin: 0 auto; }
+.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; }
+
+.card {
+  background: var(--panel-bg); backdrop-filter: blur(12px);
+  border: 1px solid var(--panel-border); border-radius: var(--radius);
+  padding: 20px; position: relative; overflow: hidden;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+.card:hover { transform: translateY(-2px); box-shadow: 0 8px 30px rgba(0,0,0,0.5); }
+.card-title {
+  font-size: 12px; font-weight: 600; letter-spacing: 0.1em;
+  text-transform: uppercase; color: var(--text-muted); margin-bottom: 16px;
+  display: flex; align-items: center; gap: 8px;
+}
+
+.price-row { display: flex; align-items: baseline; gap: 8px; margin-bottom: 8px; }
+.price-num { font-family: 'JetBrains Mono', monospace; font-size: 32px; font-weight: 700; }
+.price-unit { font-size: 12px; color: var(--text-muted); font-weight: 600; }
+
+.oil-text { color: var(--oil-color); text-shadow: 0 0 10px var(--oil-glow); }
+.elec-text { color: var(--elec-color); text-shadow: 0 0 10px var(--elec-glow); }
+
+.meter-section { margin-top: 16px; background: rgba(0,0,0,0.3); padding: 12px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.05); }
+.meter-row { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+.meter-row:last-child { margin-bottom: 0; }
+.meter-label { font-size: 11px; color: var(--text-muted); width: 28px; font-weight: 600; }
+.meter-wrap { flex: 1; height: 6px; background: rgba(255,255,255,0.1); border-radius: 3px; overflow: hidden; }
+.meter-fill { height: 100%; transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
+.meter-val { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--text-main); width: 45px; text-align: right; }
+
+.fill-oil { background: var(--oil-color); box-shadow: 0 0 8px var(--oil-color); }
+.fill-elec { background: var(--elec-color); box-shadow: 0 0 8px var(--elec-color); }
+
+.action-row { display: flex; gap: 8px; margin-top: 20px; }
+.qty-input {
+  width: 70px; padding: 10px; font-size: 14px; font-family: 'JetBrains Mono', monospace;
+  background: rgba(0,0,0,0.5); border: 1px solid var(--panel-border);
+  border-radius: var(--radius-sm); color: var(--text-main); outline: none; text-align: center;
+}
+.btn {
+  flex: 1; padding: 10px; font-size: 14px; font-weight: 600;
+  border-radius: var(--radius-sm); cursor: pointer; border: none; transition: 0.2s;
+}
+.btn-buy { background: rgba(245, 158, 11, 0.1); color: var(--oil-color); border: 1px solid rgba(245, 158, 11, 0.3); }
+.btn-buy:hover { background: var(--oil-color); color: #000; box-shadow: 0 0 15px var(--oil-glow); }
+.btn-sell { background: rgba(6, 182, 212, 0.1); color: var(--elec-color); border: 1px solid rgba(6, 182, 212, 0.3); }
+.btn-sell:hover { background: var(--elec-color); color: #000; box-shadow: 0 0 15px var(--elec-glow); }
+
+.stat-box {
+  display: flex; justify-content: space-between; align-items: center;
+  background: rgba(0,0,0,0.3); padding: 12px; border-radius: 8px;
+  border: 1px solid rgba(255,255,255,0.05); margin-bottom: 8px;
+}
+.stat-label { font-size: 12px; color: var(--text-muted); }
+.stat-val { font-family: 'JetBrains Mono', monospace; font-size: 15px; font-weight: 700; }
+
+.ai-status { font-size: 12px; padding: 10px; border-radius: var(--radius-sm); margin-top: 10px; text-align: center; font-weight: 600; letter-spacing: 0.05em; }
+.ai-idle { background: rgba(255,255,255,0.05); color: var(--text-muted); border: 1px solid var(--panel-border); }
+.ai-working { background: rgba(245,158,11,0.1); color: var(--oil-color); border: 1px solid var(--oil-color); }
+.ai-blackhole { background: rgba(168,85,247,0.2); color: #d8b4fe; border: 1px solid var(--ai-color); box-shadow: 0 0 20px var(--ai-glow); animation: glitch 0.3s infinite; }
+
+.db-info {
+  font-size: 10px; color: var(--text-muted); text-align: center;
+  margin-top: 10px; padding: 6px; background: rgba(139,92,246,0.05);
+  border-radius: 4px; border: 1px solid rgba(139,92,246,0.15);
+}
+
+/* 토스트 알림 */
+#toast {
+  position: fixed; bottom: 20px; right: 20px;
+  background: rgba(16, 185, 129, 0.9);
+  color: #fff; padding: 12px 20px; border-radius: var(--radius-sm);
+  font-size: 13px; font-weight: 600; box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+  opacity: 0; pointer-events: none; transition: 0.3s transform, 0.3s opacity;
+  transform: translateY(20px); z-index: 1000;
+}
+#toast.show { opacity: 1; transform: translateY(0); }
+
+@keyframes glitch {
+  0% { transform: translate(1px, 1px); }
+  50% { transform: translate(-1px, -1px); }
+  100% { transform: translate(0, 0); }
+}
+
+::-webkit-scrollbar { width: 8px; }
+::-webkit-scrollbar-track { background: var(--bg-dark); }
+::-webkit-scrollbar-thumb { background: var(--panel-border); border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    <div class="logo-icon">⚡</div>
+    <span class="logo-text">SYS.TERMINAL <span style="font-weight:400; color:var(--text-muted)">v4.6</span></span>
+  </div>
+  <div class="header-actions">
+    <span class="save-indicator" id="save_indicator">DB 연결 중...</span>
+    <div class="money-badge">₩ <span id="money">--</span></div>
+    <button class="btn-icon" onclick="manualSave()">💾 저장</button>
+    <button class="btn-icon danger" onclick="confirmReset()">🗑 초기화</button>
+    <button class="btn-icon" onclick="openModal()">❓ INFO</button>
+  </div>
+</header>
+
+<div class="container">
+  <div class="grid">
+    <!-- Oil Market -->
+    <div class="card" style="border-top: 3px solid var(--oil-color);">
+      <div class="card-title">🛢️ Global Oil Market</div>
+      <div class="price-row">
+        <span class="price-num oil-text" id="oil_price">--</span>
+        <span class="price-unit">KRW / BBL</span>
+      </div>
+      <div class="meter-section">
+        <div class="meter-row">
+          <span class="meter-label">공급</span>
+          <div class="meter-wrap"><div class="meter-fill fill-oil" id="oil_s_bar" style="width:0%"></div></div>
+          <span class="meter-val" id="oil_supply">0</span>
+        </div>
+        <div class="meter-row">
+          <span class="meter-label">수요</span>
+          <div class="meter-wrap"><div class="meter-fill fill-oil" id="oil_d_bar" style="width:0%;opacity:0.5"></div></div>
+          <span class="meter-val" id="oil_demand">0</span>
+        </div>
+      </div>
+      <div class="action-row">
+        <input type="number" class="qty-input" id="buy_oil_qty" value="1" min="1">
+        <button class="btn btn-buy" onclick="buyOil()">Buy Oil</button>
+      </div>
+    </div>
+
+    <!-- Refinery -->
+    <div class="card" style="border-top: 3px solid #fff;">
+      <div class="card-title">🏭 Refinery Status</div>
+      <div class="stat-box">
+        <span class="stat-label">보유 오일</span>
+        <span class="stat-val oil-text" id="inv_oil">0</span>
+      </div>
+      <div class="stat-box">
+        <span class="stat-label">보유 전기</span>
+        <span class="stat-val elec-text" id="inv_elec">0</span>
+      </div>
+      <div class="stat-box" style="background:transparent; border:none; border-top:1px dashed var(--panel-border); border-radius:0;">
+        <span class="stat-label" style="color:var(--text-main)">활성 공정 (5s)</span>
+        <span class="stat-val" id="queue_count" style="font-size:24px;">0</span>
+      </div>
+      <div class="db-info" id="db_info">💠 저장소 연결 중...</div>
+    </div>
+
+    <!-- AI Regulator -->
+    <div class="card" style="border-top: 3px solid var(--ai-color);">
+      <div class="card-title">💠 AI Market Regulator</div>
+      <div id="ai_status" class="ai-status ai-idle">SYSTEM STANDBY</div>
+      <div style="font-size:11px; color:var(--text-muted); margin-top:16px; line-height:1.6; background:rgba(0,0,0,0.3); padding:12px; border-radius:8px;">
+        <span style="color:var(--text-main); font-weight:bold;">[규제 상태 로그]</span><br>
+        자유 시장 모니터링 중... 블랙홀 임계치(<span style="color:var(--alert-color)">100</span>) 도달 시 개입 대기.
+      </div>
+    </div>
+
+    <!-- Electric Grid -->
+    <div class="card" style="border-top: 3px solid var(--elec-color);">
+      <div class="card-title">⚡ Electric Grid</div>
+      <div class="price-row">
+        <span class="price-num elec-text" id="elec_price">--</span>
+        <span class="price-unit">KRW / kWh</span>
+      </div>
+      <div class="meter-section">
+        <div class="meter-row">
+          <span class="meter-label">공급</span>
+          <div class="meter-wrap"><div class="meter-fill fill-elec" id="elec_s_bar" style="width:0%"></div></div>
+          <span class="meter-val" id="elec_supply">0</span>
+        </div>
+        <div class="meter-row">
+          <span class="meter-label">수요</span>
+          <div class="meter-wrap"><div class="meter-fill fill-elec" id="elec_d_bar" style="width:0%;opacity:0.5"></div></div>
+          <span class="meter-val" id="elec_demand">0</span>
+        </div>
+      </div>
+      <div class="action-row">
+        <input type="number" class="qty-input" id="sell_elec_qty" value="1" min="1">
+        <button class="btn btn-sell" onclick="sellElec()">Sell Power</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Info Modal -->
+<div id="info_modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.7); backdrop-filter:blur(5px); align-items:center; justify-content:center; z-index:100;">
+  <div style="background:var(--bg-dark); border:1px solid var(--ai-color); box-shadow:0 0 30px var(--ai-glow); width:90%; max-width:500px; padding:24px; border-radius:var(--radius); max-height:80vh; overflow-y:auto;">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; border-bottom:1px solid var(--panel-border); padding-bottom:12px;">
+      <h2 style="font-size:18px; font-weight:800; color:var(--ai-color);">SYS.TERMINAL 가이드</h2>
+      <button onclick="closeModal()" style="background:none; border:none; color:var(--text-muted); font-size:24px; cursor:pointer;">×</button>
+    </div>
+    <div style="margin-bottom:20px;">
+      <h3 style="font-size:14px; color:var(--elec-color); margin-bottom:8px;">🎮 기본 조작법</h3>
+      <p style="font-size:13px; color:var(--text-muted); line-height:1.6;">오일을 저렴할 때 구매하여 5초의 변환 공정을 거쳐 전기로 만든 뒤, 전기 가격이 비쌀 때 시장에 판매하여 마진을 남기는 트레이딩 타이쿤입니다.</p>
+    </div>
+    <div style="margin-bottom:20px;">
+      <h3 style="font-size:14px; color:var(--elec-color); margin-bottom:8px;">📈 시장 경제 원리</h3>
+      <p style="font-size:13px; color:var(--text-muted); line-height:1.6;">가격은 <strong>수요/공급 비율</strong>에 의해 결정됩니다. 누군가 물건을 사면(수요 증가/공급 감소) 가격이 오르고, 팔면(공급 증가) 가격이 떨어집니다.</p>
+    </div>
+    <div style="margin-bottom:20px;">
+      <h3 style="font-size:14px; color:var(--elec-color); margin-bottom:8px;">💠 AI 규제 프로토콜 (핵심)</h3>
+      <p style="font-size:13px; color:var(--text-muted); line-height:1.6;">시장의 붕괴를 막기 위해 AI가 시장에 자동 개입합니다.</p>
+      <ul style="font-size:13px; color:var(--text-muted); padding-left:20px; margin-top:8px; line-height:1.8;">
+        <li><strong>가격 억제:</strong> 오일 가격이 50 KRW를 초과하면 AI가 전기를 소모해 오일을 공급하여 가격을 강제로 낮춥니다.</li>
+        <li><strong>과잉 공급 회수:</strong> 전기의 공급이 수요의 2배가 되면 공급량의 10%를 즉시 회수합니다.</li>
+        <li><strong>🌌 블랙홀 임계치:</strong> 전기 공급량이 <strong>100(10^2)</strong>을 초과하면 AI가 <strong>공급량의 90%를 즉각 증발</strong>시키고 오일로 전환합니다.</li>
+      </ul>
+    </div>
+    <div style="border-top:1px solid var(--panel-border); padding-top:15px;">
+      <h3 style="font-size:14px; color:var(--elec-color); margin-bottom:8px;">💾 데이터 관리</h3>
+      <p style="font-size:13px; color:var(--text-muted); line-height:1.6;">
+        게임은 <strong>localStorage</strong>에 5초마다 자동 저장됩니다.<br>
+        (※ Artifact 환경에서는 Storage API를 통해 영구 저장됩니다.)
+      </p>
+      <div style="display:flex; gap:10px; margin-top:14px;">
+        <button class="btn btn-sell" style="padding:8px;" onclick="manualSave(); closeModal();">수동 저장</button>
+        <button class="btn btn-buy" style="padding:8px; background:rgba(239,68,68,0.1); color:var(--alert-color); border-color:rgba(239,68,68,0.3);" onclick="confirmReset(); closeModal();">초기화</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+// ─── 저장소 추상화 레이어 ───────────────────────────────────────────
+// Artifact 환경(window.storage)이 있으면 그것을 사용하고,
+// 없으면 localStorage 폴백으로 동작합니다.
+const SAVE_KEY = 'energyLoopTerminalSave_v46';
+let dbReady = false;
+let useStorageAPI = false;
+
+const StorageAdapter = {
+  async get(key) {
+    if (useStorageAPI) {
+      const result = await window.storage.get(key);
+      return result ? result.value : null;
+    } else {
+      return localStorage.getItem(key);
+    }
+  },
+  async set(key, value) {
+    if (useStorageAPI) {
+      await window.storage.set(key, value);
+    } else {
+      localStorage.setItem(key, value);
+    }
+  },
+  async delete(key) {
+    if (useStorageAPI) {
+      await window.storage.delete(key);
+    } else {
+      localStorage.removeItem(key);
+    }
+  }
+};
+
+// ─── 상태 초기값 ────────────────────────────────────────────────────
+let state = {
+  money: 100,
+  inventory: { oil: 0, electricity: 0 },
+  queue: [],
+  market: {
+    oil: { demand: 10, supply: 10, base: 50 },
+    electricity: { demand: 10, supply: 10, base: 100 }
+  },
+  ai: { status: 'idle', msg: 'SYSTEM STANDBY' }
+};
+
+const BLACKHOLE_LIMIT = 100;
+let autoSaveTimer = 0;
+
+// ─── UI 헬퍼 ────────────────────────────────────────────────────────
+function showToast(msg, isError = false) {
+  const toast = document.getElementById('toast');
+  toast.textContent = msg;
+  toast.style.background = isError ? 'rgba(239, 68, 68, 0.9)' : 'rgba(16, 185, 129, 0.9)';
+  toast.classList.add('show');
+  setTimeout(() => toast.classList.remove('show'), 2500);
+}
+
+function setSaveIndicator(status, text) {
+  const el = document.getElementById('save_indicator');
+  el.textContent = text;
+  el.className = 'save-indicator' + (status ? ' ' + status : '');
+}
+
+function openModal() {
+  const m = document.getElementById('info_modal');
+  m.style.display = 'flex';
+}
+function closeModal() {
+  document.getElementById('info_modal').style.display = 'none';
+}
+function confirmReset() {
+  if (confirm('경고: 모든 진행 데이터가 삭제됩니다. 초기화 하시겠습니까?')) {
+    resetGame();
+  }
+}
+
+// ─── 저장 / 불러오기 ───────────────────────────────────────────────
+async function loadGame() {
+  setSaveIndicator('', 'DB 연결 중...');
+
+  // Storage API 사용 가능 여부 감지
+  if (typeof window !== 'undefined' && window.storage && typeof window.storage.get === 'function') {
+    useStorageAPI = true;
+  }
+
+  try {
+    const raw = await StorageAdapter.get(SAVE_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      state.money = parsed.money ?? state.money;
+      state.inventory = parsed.inventory ?? state.inventory;
+      state.market = parsed.market ?? state.market;
+      // 공정 큐: 남은 시간 복원
+      state.queue = (parsed.queue || []).map(q => ({
+        qty: q.qty,
+        endTime: Date.now() + Math.max(0, q.remainingMs || 0)
+      }));
+      dbReady = true;
+      const storageType = useStorageAPI ? 'Storage API' : 'localStorage';
+      setSaveIndicator('saving', `✅ ${storageType} 로드 완료`);
+      document.getElementById('db_info').textContent = `💠 ${storageType} 연결됨 · 자동저장 활성`;
+      showToast('💾 저장된 터미널 데이터를 불러왔습니다.');
+      setTimeout(() => setSaveIndicator('', '자동저장 대기'), 2000);
+    } else {
+      dbReady = true;
+      const storageType = useStorageAPI ? 'Storage API' : 'localStorage';
+      setSaveIndicator('saving', '🆕 새 게임');
+      document.getElementById('db_info').textContent = `💠 ${storageType} 연결됨 · 새 게임 시작`;
+      setTimeout(() => setSaveIndicator('', '자동저장 대기'), 2000);
+    }
+  } catch (e) {
+    dbReady = true;
+    setSaveIndicator('error', '⚠️ DB 오류 (세션 전용)');
+    document.getElementById('db_info').textContent = '⚠️ 저장소 오류 - 세션 데이터만 유지됩니다';
+    console.warn('Storage load error:', e);
+  }
+}
+
+async function saveGame(silent = false) {
+  if (!dbReady) return;
+  const now = Date.now();
+  const saveData = {
+    money: state.money,
+    inventory: state.inventory,
+    market: state.market,
+    queue: state.queue.map(q => ({
+      qty: q.qty,
+      remainingMs: Math.max(0, q.endTime - now)
+    })),
+    savedAt: new Date().toISOString()
+  };
+  try {
+    if (!silent) setSaveIndicator('saving', '💾 저장 중...');
+    await StorageAdapter.set(SAVE_KEY, JSON.stringify(saveData));
+    if (!silent) {
+      showToast('✅ 저장되었습니다.');
+      setSaveIndicator('saving', '✅ 저장됨');
+      setTimeout(() => setSaveIndicator('', '자동저장 대기'), 1500);
+    }
+  } catch (e) {
+    setSaveIndicator('error', '❌ 저장 실패');
+    if (!silent) showToast('저장 실패: ' + e.message, true);
+    console.error('Storage save error:', e);
+  }
+}
+
+async function manualSave() { await saveGame(false); }
+
+async function resetGame() {
+  try { await StorageAdapter.delete(SAVE_KEY); } catch(e) { console.warn(e); }
+  state = {
+    money: 100,
+    inventory: { oil: 0, electricity: 0 },
+    queue: [],
+    market: {
+      oil: { demand: 10, supply: 10, base: 50 },
+      electricity: { demand: 10, supply: 10, base: 100 }
+    },
+    ai: { status: 'idle', msg: 'SYSTEM STANDBY' }
+  };
+  showToast('🗑 데이터가 초기화되었습니다. 새 게임 시작!');
+  setSaveIndicator('saving', '🆕 초기화 완료');
+  setTimeout(() => setSaveIndicator('', '자동저장 대기'), 2000);
+}
+
+// ─── 게임 코어 로직 ─────────────────────────────────────────────────
+function getPrice(item) {
+  const m = state.market[item];
+  const ratio = Math.pow(m.demand / (m.supply + 0.1), 1.5);
+  return Math.max(1, Math.floor(m.base * ratio));
+}
+
+function buyOil() {
+  const qty = parseFloat(document.getElementById('buy_oil_qty').value) || 0;
+  const p = getPrice('oil');
+  if (state.money < p * qty) { showToast('잔액이 부족합니다.', true); return; }
+  state.money -= p * qty;
+  state.inventory.oil += qty;
+  state.market.oil.supply = Math.max(0.1, state.market.oil.supply - qty);
+  state.queue.push({ qty, endTime: Date.now() + 5000 });
+}
+
+function sellElec() {
+  const qty = parseFloat(document.getElementById('sell_elec_qty').value) || 0;
+  const realQty = Math.min(qty, state.inventory.electricity);
+  if (realQty <= 0) { showToast('판매할 전기가 부족합니다.', true); return; }
+  state.money += getPrice('electricity') * realQty;
+  state.inventory.electricity -= realQty;
+  state.market.electricity.supply += realQty;
+}
+
+function runAI() {
+  const es = state.market.electricity.supply;
+  const ed = state.market.electricity.demand;
+  const op = getPrice('oil');
+
+  if (es > BLACKHOLE_LIMIT) {
+    const purgeQty = es * 0.9;
+    state.market.electricity.supply -= purgeQty;
+    state.market.oil.supply += purgeQty;
+    state.ai.status = 'blackhole';
+    state.ai.msg = 'CRITICAL: 90% SUPPLY PURGED';
+    return;
+  }
+  if (es >= ed * 2) {
+    const buyQty = es * 0.1;
+    state.market.electricity.supply -= buyQty;
+    state.market.oil.supply += buyQty;
+    state.ai.status = 'working';
+    state.ai.msg = 'WARNING: EXCESS SUPPLY (x2) DETECTED';
+  } else if (op > 50) {
+    state.market.oil.supply += 0.5;
+    state.market.electricity.demand += 0.3;
+    state.ai.status = 'working';
+    state.ai.msg = 'ACTION: PRICE STABILIZATION';
+  } else {
+    state.ai.status = 'idle';
+    state.ai.msg = 'SYSTEM STANDBY';
+  }
+}
+
+function update() {
+  state.market.oil.demand += (Math.random() - 0.5) * 1.5;
+  state.market.electricity.supply += (Math.random() - 0.2) * 3;
+  runAI();
+
+  const now = Date.now();
+  state.queue = state.queue.filter(q => {
+    if (now >= q.endTime) {
+      state.inventory.oil -= q.qty;
+      state.inventory.electricity += q.qty;
+      return false;
+    }
+    return true;
+  });
+
+  // 자동저장 (약 5초마다)
+  autoSaveTimer++;
+  if (autoSaveTimer >= 10) {
+    saveGame(true);
+    autoSaveTimer = 0;
+  }
+}
+
+function render() {
+  document.getElementById('money').textContent = Math.floor(state.money).toLocaleString();
+  document.getElementById('oil_price').textContent = getPrice('oil').toLocaleString();
+  document.getElementById('elec_price').textContent = getPrice('electricity').toLocaleString();
+
+  document.getElementById('oil_demand').textContent = state.market.oil.demand.toFixed(1);
+  document.getElementById('elec_demand').textContent = state.market.electricity.demand.toFixed(1);
+  document.getElementById('oil_supply').textContent = state.market.oil.supply.toFixed(1);
+  document.getElementById('elec_supply').textContent = state.market.electricity.supply.toFixed(1);
+
+  const aiEl = document.getElementById('ai_status');
+  aiEl.textContent = state.ai.msg;
+  aiEl.className = 'ai-status ai-' + state.ai.status;
+
+  document.getElementById('inv_oil').textContent = state.inventory.oil.toLocaleString();
+  document.getElementById('inv_elec').textContent = state.inventory.electricity.toLocaleString();
+  document.getElementById('queue_count').textContent = state.queue.length;
+
+  const getW = (v) => Math.min(100, (v / 100) * 100) + '%';
+  document.getElementById('oil_s_bar').style.width = getW(state.market.oil.supply);
+  document.getElementById('oil_d_bar').style.width = getW(state.market.oil.demand);
+  document.getElementById('elec_s_bar').style.width = getW(state.market.electricity.supply);
+  document.getElementById('elec_d_bar').style.width = getW(state.market.electricity.demand);
+}
+
+// ─── 게임 시작 ──────────────────────────────────────────────────────
+loadGame().then(() => {
+  setInterval(() => { update(); render(); }, 500);
+});
+</script>
+</body>
+</html>
