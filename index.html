@@ -273,7 +273,7 @@ header {
 </div>
 
 <!-- Info Modal -->
-<div id="info_modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.7); backdrop-filter:blur(5px); align-items:center; justify-content:center; z-index:100;">
+<div id="info_modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.7); backdrop-filter:blur(5px); align-items:center; justify-content:center; z-index:999;">
   <div style="background:var(--bg-dark); border:1px solid var(--ai-color); box-shadow:0 0 30px var(--ai-glow); width:90%; max-width:500px; padding:24px; border-radius:var(--radius); max-height:80vh; overflow-y:auto;">
     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; border-bottom:1px solid var(--panel-border); padding-bottom:12px;">
       <h2 style="font-size:18px; font-weight:800; color:var(--ai-color);">SYS.TERMINAL 가이드</h2>
@@ -281,11 +281,11 @@ header {
     </div>
     <div style="margin-bottom:20px;">
       <h3 style="font-size:14px; color:var(--elec-color); margin-bottom:8px;">🎮 기본 조작법</h3>
-      <p style="font-size:13px; color:var(--text-muted); line-height:1.6;">오일을 저렴할 때 구매하여 5초의 변환 공정을 거쳐 전기로 만든 뒤, 전기 가격이 비쌀 때 시장에 판매하여 마진을 남기는 트레이딩 타이쿤입니다.</p>
+      <p style="font-size:13px; color:var(--text-muted); line-height:1.6;">오일을 저렴할 때 구매하여 5초의 변환 공정을 거쳐 전기로 만든 뒤, 전기 가격이 비쌀 때 판매하세요. 시장의 변동성을 이용해 수익을 극대화하는 것이 목표입니다.</p>
     </div>
     <div style="margin-bottom:20px;">
       <h3 style="font-size:14px; color:var(--elec-color); margin-bottom:8px;">📈 시장 경제 원리</h3>
-      <p style="font-size:13px; color:var(--text-muted); line-height:1.6;">가격은 <strong>수요/공급 비율</strong>에 의해 결정됩니다. 누군가 물건을 사면(수요 증가/공급 감소) 가격이 오르고, 팔면(공급 증가) 가격이 떨어집니다.</p>
+      <p style="font-size:13px; color:var(--text-muted); line-height:1.6;">가격은 <strong>수요/공급 비율</strong>에 의해 결정됩니다. 누군가 물건을 사면(수요 증가/공급 감소) 가격이 올라가고, 팔면(수요 감소/공급 증가) 가격이 내려갑니다.</p>
     </div>
     <div style="margin-bottom:20px;">
       <h3 style="font-size:14px; color:var(--elec-color); margin-bottom:8px;">💠 AI 규제 프로토콜 (핵심)</h3>
@@ -293,7 +293,7 @@ header {
       <ul style="font-size:13px; color:var(--text-muted); padding-left:20px; margin-top:8px; line-height:1.8;">
         <li><strong>가격 억제:</strong> 오일 가격이 50 KRW를 초과하면 AI가 전기를 소모해 오일을 공급하여 가격을 강제로 낮춥니다.</li>
         <li><strong>과잉 공급 회수:</strong> 전기의 공급이 수요의 2배가 되면 공급량의 10%를 즉시 회수합니다.</li>
-        <li><strong>🌌 블랙홀 임계치:</strong> 전기 공급량이 <strong>100(10^2)</strong>을 초과하면 AI가 <strong>공급량의 90%를 즉각 증발</strong>시키고 오일로 전환합니다.</li>
+        <li><strong>🌌 블랙홀 임계치:</strong> 전기 공급량이 <strong>100(10^2)</strong>을 초과하면 AI가 <strong>공급량의 90%를 즉각 증발</strong>시키고 오일로 전환하며, <strong>오일 가격이 30으로 고정</strong>됩니다.</li>
       </ul>
     </div>
     <div style="border-top:1px solid var(--panel-border); padding-top:15px;">
@@ -354,7 +354,7 @@ let state = {
     oil: { demand: 10, supply: 10, base: 50 },
     electricity: { demand: 10, supply: 10, base: 100 }
   },
-  ai: { status: 'idle', msg: 'SYSTEM STANDBY' }
+  ai: { status: 'idle', msg: 'SYSTEM STANDBY', isBlackhole: false }
 };
 
 const BLACKHOLE_LIMIT = 100;
@@ -470,7 +470,7 @@ async function resetGame() {
       oil: { demand: 10, supply: 10, base: 50 },
       electricity: { demand: 10, supply: 10, base: 100 }
     },
-    ai: { status: 'idle', msg: 'SYSTEM STANDBY' }
+    ai: { status: 'idle', msg: 'SYSTEM STANDBY', isBlackhole: false }
   };
   showToast('🗑 데이터가 초기화되었습니다. 새 게임 시작!');
   setSaveIndicator('saving', '🆕 초기화 완료');
@@ -480,6 +480,12 @@ async function resetGame() {
 // ─── 게임 코어 로직 ─────────────────────────────────────────────────
 function getPrice(item) {
   const m = state.market[item];
+  
+  // 블랙홀 상태에서 오일 가격 고정
+  if (item === 'oil' && state.ai.isBlackhole) {
+    return 30;
+  }
+  
   const ratio = Math.pow(m.demand / (m.supply + 0.1), 1.5);
   return Math.max(1, Math.floor(m.base * ratio));
 }
@@ -491,6 +497,8 @@ function buyOil() {
   state.money -= p * qty;
   state.inventory.oil += qty;
   state.market.oil.supply = Math.max(0.1, state.market.oil.supply - qty);
+  // 기름 수요만큼 공급이 감소
+  state.market.oil.supply = Math.max(0.1, state.market.oil.supply - state.market.oil.demand);
   state.queue.push({ qty, endTime: Date.now() + 5000 });
 }
 
@@ -514,8 +522,13 @@ function runAI() {
     state.market.oil.supply += purgeQty;
     state.ai.status = 'blackhole';
     state.ai.msg = 'CRITICAL: 90% SUPPLY PURGED';
+    state.ai.isBlackhole = true;
     return;
   }
+  
+  // 블랙홀 상태 해제
+  state.ai.isBlackhole = false;
+  
   if (es >= ed * 2) {
     const buyQty = es * 0.1;
     state.market.electricity.supply -= buyQty;
@@ -534,7 +547,15 @@ function runAI() {
 }
 
 function update() {
+  // 기름 수요를 공급의 50%~150% 범위로 유지
+  const minDemand = state.market.oil.supply * 0.50;
+  const maxDemand = state.market.oil.supply * 1.50;
   state.market.oil.demand += (Math.random() - 0.5) * 1.5;
+  state.market.oil.demand = Math.max(minDemand, Math.min(maxDemand, state.market.oil.demand));
+  
+  // 기름 수요만큼 공급 감소
+  state.market.oil.supply = Math.max(0.1, state.market.oil.supply - state.market.oil.demand);
+  
   state.market.electricity.supply += (Math.random() - 0.2) * 3;
   runAI();
 
